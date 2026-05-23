@@ -89,6 +89,10 @@ struct CCamera {
 
 static CCamera* pTheCamera = nullptr;
 
+void (*ClearAimFlag)(void* self);
+void (*ClearLookFlag)(void* self);
+void (*TaskUseGunClearAnim)(void* self, void* ped);
+
 void ForceClearAim(void* player)
 {
     if (!player) return;
@@ -102,20 +106,43 @@ void ForceClearAim(void* player)
     // 2. Try to clear target lock
     if (SetWeaponLockOnTarget) SetWeaponLockOnTarget(player, nullptr);
 
-    // 3. Try to use game function if available via symbol
+    // 3. Clear Ped flags
+    if (ClearAimFlag) ClearAimFlag(player);
+    if (ClearLookFlag) ClearLookFlag(player);
+
+    // 4. Force Idle state
+    if (SetMoveState) SetMoveState(player, 0); // 0 = IDLE
+
+    // 5. Try to use game function if available via symbol
     if (ClearWeaponTarget)
     {
         ClearWeaponTarget(player);
     }
 
-    // 4. Manual task abortion (safer fallback)
+    // 6. Manual task abortion and animation clearing
     void* intelligence = *(void**)((uintptr_t)player + 0x440);
     if (intelligence && GetTaskUseGun)
     {
         uintptr_t taskUseGun = (uintptr_t)GetTaskUseGun(intelligence);
         if (taskUseGun)
         {
+            if (TaskUseGunClearAnim) TaskUseGunClearAnim((void*)taskUseGun, player);
             *(uint8_t*)(taskUseGun + 16) = 0; // State 0 = Idle/Abort
+        }
+    }
+
+    // 7. Clear native touch interface states
+    if (g_touchWidgets)
+    {
+        int ids[] = { 1, 19, 20, 21, 175 }; // Target widgets and Look widget
+        for (int id : ids)
+        {
+            uintptr_t w = g_touchWidgets[id];
+            if (w)
+            {
+                *(uint8_t*)(w + 72) = 0; // bIsTouched
+                *(int*)(w + 120) = -1;    // nTouchID
+            }
         }
     }
 }
@@ -656,6 +683,10 @@ extern "C" void OnModLoad()
         ClearWeaponTarget = (void (*)(void*))(aml->GetSym(pGameHandle, "_ZN10CPlayerPed17ClearWeaponTargetEv"));
         SetWeaponLockOnTarget = (void (*)(void*, void*))(aml->GetSym(pGameHandle, "_ZN4CPed21SetWeaponLockOnTargetEP7CEntity"));
         ClearPlayerWeaponMode = (void (*)(void*))(aml->GetSym(pGameHandle, "_ZN7CCamera21ClearPlayerWeaponModeEv"));
+        ClearPlayerWeaponMode = (void (*)(void*))(aml->GetSym(pGameHandle, "_ZN7CCamera21ClearPlayerWeaponModeEv"));
+        ClearAimFlag = (void (*)(void*))(aml->GetSym(pGameHandle, "_ZN4CPed12ClearAimFlagEv"));
+        ClearLookFlag = (void (*)(void*))(aml->GetSym(pGameHandle, "_ZN4CPed13ClearLookFlagEv"));
+        TaskUseGunClearAnim = (void (*)(void*, void*))(aml->GetSym(pGameHandle, "_ZN17CTaskSimpleUseGun9ClearAnimEP4CPed"));
         SetMoveState = (void (*)(void*, int))(aml->GetSym(pGameHandle, "_ZN4CPed12SetMoveStateE10eMoveState"));
         if (!SetMoveState) SetMoveState = (void (*)(void*, int))(gtasa + 0x3639A4 + 1);
         HOOK(ProcessWeaponSwitch, gtasa + addrProcessWeaponSwitch + 1);
