@@ -66,6 +66,29 @@ void (*ClearWeaponTarget)(void* self);
 void (*SetWeaponLockOnTarget)(void* self, void* target);
 void (*ClearPlayerWeaponMode)(void* self);
 
+struct CCam {
+    char padding[14];
+    uint16_t nMode;
+    char padding1[132 - 16];
+    float fAngleVertical;
+    float fBetaSpeed;
+    char padding2[8];
+    float fAngleHorizontal;
+    float fAlphaSpeed;
+    char padding3[528 - 156];
+};
+
+struct CCamera {
+    char padding[87];
+    uint8_t nActiveCam;
+    char padding2[172 - 88];
+    uint32_t nControlMode;
+    char padding3[368 - 176];
+    CCam aCams[3];
+};
+
+static CCamera* pTheCamera = nullptr;
+
 void ForceClearAim(void* player)
 {
     if (!player) return;
@@ -124,29 +147,6 @@ RwReal* recipNearClip = nullptr;
 void (*SetScissorRect)(float*) = nullptr;
 static bool g_imguiInitialized = false;
 static uintptr_t* g_touchWidgets = nullptr;
-
-struct CCam {
-    char padding[14];
-    uint16_t nMode;
-    char padding1[132 - 16];
-    float fAngleVertical;
-    float fBetaSpeed;
-    char padding2[8];
-    float fAngleHorizontal;
-    float fAlphaSpeed;
-    char padding3[528 - 156];
-};
-
-struct CCamera {
-    char padding[87];
-    uint8_t nActiveCam;
-    char padding2[172 - 88];
-    uint32_t nControlMode;
-    char padding3[368 - 176];
-    CCam aCams[3];
-};
-
-static CCamera* pTheCamera = nullptr;
 
 static bool IsCustomVCShootWidget(int widgetId) { return widgetId == 21; }
 static bool IsCustomTargetWidget(int widgetId) { return widgetId == 1 || widgetId == 19 || widgetId == 20; }
