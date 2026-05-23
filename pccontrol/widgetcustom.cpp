@@ -4,6 +4,9 @@
 #include "../ImGui/imgui.h"
 #include <math.h>
 
+extern void* (*FindPlayerPed)(int);
+extern void (*ClearWeaponTarget)(void* self);
+
 struct WidgetState {
     int activeFinger = -1;
     bool touched = false;
@@ -92,6 +95,12 @@ bool HandleCustomWidgetTouch(int type, int fingerId, int x, int y)
                 if (w.action == ACTION_TOGGLE_HUD)
                 {
                     g_pcSettings.hideCustomWidgets = !g_pcSettings.hideCustomWidgets;
+                }
+
+                if (w.action == ACTION_CLEAR_AIM)
+                {
+                    void* player = FindPlayerPed(-1);
+                    if (player) ClearWeaponTarget(player);
                 }
 
                 // Dynamic position for DPAD
@@ -242,7 +251,7 @@ static void DrawCustomWidget(const char* label, float centerX, float centerY, fl
 
 void RenderCustomWidgets()
 {
-    const char* actionLabels[] = { "NONE", "VC", "TGT", "JMP", "CRH", "SPR", "DPD", "W-P", "W-N", "M1", "M2", "TOG", "WLK" };
+    const char* actionLabels[] = { "NONE", "VC", "TGT", "JMP", "CRH", "SPR", "DPD", "W-P", "W-N", "M1", "M2", "TOG", "WLK", "CLR" };
 
     for (int i = 0; i < MAX_CUSTOM_WIDGETS; ++i)
     {

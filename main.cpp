@@ -62,6 +62,7 @@ int (*GetTaskUseGun)(void* self);
 DECL_HOOK(int, ProcessWeaponSwitch, void* self, void* pad);
 void* (*FindPlayerPed)(int);
 void (*SetMoveState)(void* self, int state);
+void (*ClearWeaponTarget)(void* self);
 
 static bool g_crouchPrevState = false;
 static bool g_jumpPrevState = false;
@@ -619,6 +620,7 @@ extern "C" void OnModLoad()
         HOOK(CycleWeaponRightJustDown, gtasa + addrCycleWeaponRight + 1);
         GetTaskUseGun = (int (*)(void*))(gtasa + addrGetTaskUseGun + 1);
         FindPlayerPed = (void* (*)(int))(aml->GetSym(pGameHandle, "_Z13FindPlayerPedi"));
+        ClearWeaponTarget = (void (*)(void*))(gtasa + addrClearWeaponTarget + 1);
         SetMoveState = (void (*)(void*, int))(aml->GetSym(pGameHandle, "_ZN4CPed12SetMoveStateE10eMoveState"));
         if (!SetMoveState) SetMoveState = (void (*)(void*, int))(gtasa + 0x3639A4 + 1);
         HOOK(ProcessWeaponSwitch, gtasa + addrProcessWeaponSwitch + 1);

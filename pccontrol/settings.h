@@ -14,7 +14,8 @@ enum eWidgetAction
     ACTION_MACRO1,
     ACTION_MACRO2,
     ACTION_TOGGLE_HUD,
-    ACTION_WALK
+    ACTION_WALK,
+    ACTION_CLEAR_AIM
 };
 
 enum eWidgetType

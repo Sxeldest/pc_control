@@ -249,9 +249,9 @@ void RenderPCControlMenu()
                     if (g_pcSettings.widgets[i].enabled)
                     {
                         char label[64];
-                        const char* actionNames[] = { "NONE", "VC Shoot", "Target", "Jump", "Crouch", "Sprint", "Analog/DPAD", "Prev Weapon", "Next Weapon", "Macro 1", "Macro 2" };
+                        const char* actionNames[] = { "NONE", "VC Shoot", "Target", "Jump", "Crouch", "Sprint", "Analog/DPAD", "Prev Weapon", "Next Weapon", "Macro 1", "Macro 2", "Toggle HUD", "Walk", "Clear Aim" };
                         int act = g_pcSettings.widgets[i].action;
-                        if (act < 0 || act > 10) act = 0;
+                        if (act < 0 || act > 13) act = 0;
 
                         sprintf(label, "%d: %s##%d", i + 1, actionNames[act], i);
                         if (ImGui::Selectable(label, g_pcSettings.selectedWidget == (i + 1)))
@@ -270,7 +270,7 @@ void RenderPCControlMenu()
                     ImGui::Text("Editing Button %d", idx + 1);
                     ImGui::Separator();
 
-                    const char* actions[] = { "NONE", "VC Shoot", "Target", "Jump", "Crouch", "Sprint", "Analog/DPAD", "Prev Weapon", "Next Weapon", "Macro 1 (Auto Shoot)", "Macro 2 (Delayed)", "Toggle HUD (Show/Hide)", "Walk (Slow Mode)" };
+                    const char* actions[] = { "NONE", "VC Shoot", "Target", "Jump", "Crouch", "Sprint", "Analog/DPAD", "Prev Weapon", "Next Weapon", "Macro 1 (Auto Shoot)", "Macro 2 (Delayed)", "Toggle HUD (Show/Hide)", "Walk (Slow Mode)", "Clear Aim (Stop Aiming)" };
                     changed |= ImGui::Combo("Action", &g_pcSettings.widgets[idx].action, actions, IM_ARRAYSIZE(actions));
 
                     const char* types[] = { "Default (Block)", "Passthrough", "Slide-to-Activate", "Slide + Pass" };
