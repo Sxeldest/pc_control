@@ -54,6 +54,8 @@ bool HandleCustomWidgetTouch(int type, int fingerId, int x, int y)
     bool blocked = false;
     for (int i = 0; i < MAX_CUSTOM_WIDGETS; ++i)
     {
+        CustomWidget& w = g_pcSettings.widgets[i];
+        if (!w.enabled) continue;
 
         // If HUD is hidden, only allow interaction with the toggle button
         if (g_pcSettings.hideCustomWidgets && w.action != ACTION_TOGGLE_HUD) continue;
@@ -257,18 +259,15 @@ void RenderCustomWidgets()
     {
         CustomWidget& w = g_pcSettings.widgets[i];
         if (!w.enabled) continue;
-        if (g_pcSettings.widgets[i].enabled)
-        {
-            CustomWidget& w = g_pcSettings.widgets[i];
 
-            // Hide if HUD is toggled off, but always show Toggle HUD button and always show everything if menu is open
-            if (g_pcSettings.hideCustomWidgets && w.action != ACTION_TOGGLE_HUD && !IsPCControlMenuVisible()) continue;
+        // Hide if HUD is toggled off, but always show Toggle HUD button and always show everything if menu is open
+        if (g_pcSettings.hideCustomWidgets && w.action != ACTION_TOGGLE_HUD && !IsPCControlMenuVisible()) continue;
 
-            int actionIdx = w.action;
-            if (actionIdx < 0 || actionIdx >= 13) actionIdx = 0;
+        int actionIdx = w.action;
+        if (actionIdx < 0 || actionIdx >= 14) actionIdx = 0;
 
-            float drawX = w.posX;
-            float drawY = w.posY;
+        float drawX = w.posX;
+        float drawY = w.posY;
 
             if (actionIdx == ACTION_DPAD)
             {
@@ -304,7 +303,6 @@ void RenderCustomWidgets()
             DrawCustomWidget(actionLabels[actionIdx], drawX, drawY, w.size,
                                   s_widgetStates[i].touched, i + 1, w.action,
                                   s_widgetStates[i].analogX, s_widgetStates[i].analogY);
-        }
     }
 }
 
