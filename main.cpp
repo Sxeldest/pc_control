@@ -156,30 +156,47 @@ static float SnapVisualAngle(float x, float y, bool aimMode)
 void CalculateWASD(void* self, int& outX, int& outY)
 {
     if (!self) { outX = 0; outY = 0; return; }
+
+    // Optimization: Only recalculate once per frame per ped
+    if (self == g_lastPed)
+    {
+        outX = g_cachedX;
+        outY = g_cachedY;
+        return;
+    }
+
     float rawX = (float)GetPedWalkLeftRight(self);
     float rawY = (float)GetPedWalkUpDown(self);
     CleanAnalogAxes(rawX, rawY);
     float mag = sqrtf(rawX * rawX + rawY * rawY);
-    if (mag < Z_DEADZONE) { outX = 0; outY = 0; return; }
-    outX = 0; outY = 0;
-    bool aimMode = IsAimMode();
-    if (aimMode)
+    if (mag < Z_DEADZONE) { outX = 0; outY = 0; }
+    else
     {
-        if (fabsf(rawX) >= fabsf(rawY)) outX = (rawX >= 0.0f) ? 127 : -127;
-        else outY = (rawY >= 0.0f) ? 127 : -127;
-        return;
+        bool aimMode = IsAimMode();
+        if (aimMode)
+        {
+            if (fabsf(rawX) >= fabsf(rawY)) outX = (rawX >= 0.0f) ? 127 : -127;
+            else outY = (rawY >= 0.0f) ? 127 : -127;
+        }
+        else
+        {
+            int speed = (mag <= Z_WALK_MAX) ? 64 : 127;
+            int diagSpeed = (int)(speed * 0.7071f);
+            float angle = atan2f(rawY, rawX) * 180.0f / 3.1415926535f;
+            if (angle > -30.0f && angle <= 30.0f) outX = speed;
+            else if (angle > 30.0f && angle <= 60.0f) { outX = diagSpeed; outY = diagSpeed; }
+            else if (angle > 60.0f && angle <= 120.0f) outY = speed;
+            else if (angle > 120.0f && angle <= 150.0f) { outX = -diagSpeed; outY = diagSpeed; }
+            else if (angle > 150.0f || angle <= -150.0f) outX = -speed;
+            else if (angle > -150.0f && angle <= -120.0f) { outX = -diagSpeed; outY = -diagSpeed; }
+            else if (angle > -120.0f && angle <= -60.0f) outY = -speed;
+            else if (angle > -60.0f && angle <= -30.0f) { outX = diagSpeed; outY = -diagSpeed; }
+        }
     }
-    int speed = (mag <= Z_WALK_MAX) ? 64 : 127;
-    int diagSpeed = (int)(speed * 0.7071f);
-    float angle = atan2f(rawY, rawX) * 180.0f / 3.1415926535f;
-    if (angle > -30.0f && angle <= 30.0f) outX = speed;
-    else if (angle > 30.0f && angle <= 60.0f) { outX = diagSpeed; outY = diagSpeed; }
-    else if (angle > 60.0f && angle <= 120.0f) outY = speed;
-    else if (angle > 120.0f && angle <= 150.0f) { outX = -diagSpeed; outY = diagSpeed; }
-    else if (angle > 150.0f || angle <= -150.0f) outX = -speed;
-    else if (angle > -150.0f && angle <= -120.0f) { outX = -diagSpeed; outY = -diagSpeed; }
-    else if (angle > -120.0f && angle <= -60.0f) outY = -speed;
-    else if (angle > -60.0f && angle <= -30.0f) { outX = diagSpeed; outY = -diagSpeed; }
+
+    g_cachedX = outX;
+    g_cachedY = outY;
+    g_lastPed = self;
 }
 
 int HookOf_GetPedWalkLeftRight(void* self) {
@@ -188,18 +205,16 @@ int HookOf_GetPedWalkLeftRight(void* self) {
     float customX, customY;
     GetCustomAnalogValues(customX, customY);
     if (customX != 0.0f || customY != 0.0f) {
-        if (IsActionTouched(ACTION_WALK)) { customX *= 0.45f; customY *= 0.45f; }
-        g_cachedX = (int)customX;
-        g_cachedY = (int)customY;
-        g_lastPed = self;
-        return g_cachedX;
+        if (IsActionTouched(ACTION_WALK)) customX *= 0.45f;
+        return (int)customX;
     }
 
     if (!g_pcSettings.enableAnalogPatch) return GetPedWalkLeftRight(self);
-    CalculateWASD(self, g_cachedX, g_cachedY);
-    if (IsActionTouched(ACTION_WALK)) { g_cachedX = (int)((float)g_cachedX * 0.45f); g_cachedY = (int)((float)g_cachedY * 0.45f); }
-    g_lastPed = self;
-    return g_cachedX;
+
+    int x, y;
+    CalculateWASD(self, x, y);
+    if (IsActionTouched(ACTION_WALK)) x = (int)((float)x * 0.45f);
+    return x;
 }
 
 int HookOf_GetPedWalkUpDown(void* self) {
@@ -208,25 +223,16 @@ int HookOf_GetPedWalkUpDown(void* self) {
     float customX, customY;
     GetCustomAnalogValues(customX, customY);
     if (customX != 0.0f || customY != 0.0f) {
-        if (self == g_lastPed) {
-             if (IsActionTouched(ACTION_WALK)) return (int)(customY * 0.45f);
-             return g_cachedY;
-        }
-        if (IsActionTouched(ACTION_WALK)) { customX *= 0.45f; customY *= 0.45f; }
-        g_cachedX = (int)customX;
-        g_cachedY = (int)customY;
-        g_lastPed = self;
-        return g_cachedY;
+        if (IsActionTouched(ACTION_WALK)) customY *= 0.45f;
+        return (int)customY;
     }
 
     if (!g_pcSettings.enableAnalogPatch) return GetPedWalkUpDown(self);
-    if (self == g_lastPed) {
-        if (IsActionTouched(ACTION_WALK)) return (int)((float)g_cachedY * 0.45f);
-        return g_cachedY;
-    }
-    CalculateWASD(self, g_cachedX, g_cachedY);
-    if (IsActionTouched(ACTION_WALK)) { g_cachedX = (int)((float)g_cachedX * 0.45f); g_cachedY = (int)((float)g_cachedY * 0.45f); }
-    return g_cachedY;
+
+    int x, y;
+    CalculateWASD(self, x, y);
+    if (IsActionTouched(ACTION_WALK)) y = (int)((float)y * 0.45f);
+    return y;
 }
 
 float HookOf_WidgetUpdate(void* self)
@@ -511,7 +517,7 @@ void HookOf_Render2DStuff()
 void HookOf_OnTouchEvent(int type, int fingerId, int x, int y)
 {
     // Safety check for fingerId to prevent out-of-bounds in our own and game's arrays
-    if (fingerId < 0 || fingerId >= 10) return;
+    if (fingerId < 0 || fingerId >= 15) return;
 
     if (HandleWidgetDragging(type, fingerId, x, y)) return;
     if (HandleCustomWidgetTouch(type, fingerId, x, y)) return;
@@ -538,9 +544,8 @@ void HookOf_OnTouchEvent(int type, int fingerId, int x, int y)
     }
 
     // Original game and SAMP often have a hard limit of 4-5 fingers.
-    // To prevent crash, we only pass the first 4 fingers to the original OnTouchEvent.
-    // Our custom widgets and camera above already handled all 10 fingers.
-    if (fingerId < 4)
+    // To prevent crash, we only pass the first few fingers to the original OnTouchEvent.
+    if (fingerId < 5)
     {
         OnTouchEvent(type, fingerId, x, y);
     }

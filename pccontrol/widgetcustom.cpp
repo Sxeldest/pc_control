@@ -43,77 +43,14 @@ static bool IsPointInCustomButton(float x, float y, float centerX, float centerY
     return (dx * dx + dy * dy) <= (radius * radius);
 }
 
-static bool HandleSingleButtonTouch(
-    int type,
-    int fingerId,
-    int x,
-    int y,
-    bool enabled,
-    int wtype,
-    float centerX,
-    float centerY,
-    float size,
-    WidgetState& state,
-    bool& outShouldBlock)
-{
-    if (!enabled || IsAnyMenuOpen()) return false;
-
-    bool inside = IsPointInCustomButton((float)x, (float)y, centerX, centerY, size);
-    bool isSlideType = (wtype == WTYPE_SLIDE || wtype == WTYPE_SLIDE_PASS);
-    bool isPassType = (wtype == WTYPE_PASSTHROUGH || wtype == WTYPE_SLIDE_PASS);
-
-    outShouldBlock = false;
-
-    if (type == 2) // Down
-    {
-        if (state.activeFinger == -1 && inside)
-        {
-            state.activeFinger = fingerId;
-            state.touched = true;
-            if (!isPassType) outShouldBlock = true;
-            return true;
-        }
-    }
-    else if (type == 3) // Move
-    {
-        if (fingerId == state.activeFinger)
-        {
-            state.touched = inside;
-            if (!isPassType) outShouldBlock = true;
-            return true;
-        }
-        else if (isSlideType && state.activeFinger == -1 && inside)
-        {
-            state.activeFinger = fingerId;
-            state.touched = true;
-            if (!isPassType) outShouldBlock = true;
-            return true;
-        }
-    }
-    else if (type == 1) // Up
-    {
-        if (fingerId == state.activeFinger)
-        {
-            if (state.touched) state.releaseFrames = 2;
-            state.touched = false;
-            state.activeFinger = -1;
-            if (!isPassType) outShouldBlock = true;
-            return true;
-        }
-    }
-
-    return false;
-}
-
 bool HandleCustomWidgetTouch(int type, int fingerId, int x, int y)
 {
+    if (IsAnyMenuOpen()) return false;
     if (ImGui::GetCurrentContext() && ImGui::GetIO().WantCaptureMouse) return false;
 
     bool blocked = false;
     for (int i = 0; i < MAX_CUSTOM_WIDGETS; ++i)
     {
-        CustomWidget& w = g_pcSettings.widgets[i];
-        if (!w.enabled || IsAnyMenuOpen()) continue;
 
         // If HUD is hidden, only allow interaction with the toggle button
         if (g_pcSettings.hideCustomWidgets && w.action != ACTION_TOGGLE_HUD) continue;
@@ -155,7 +92,6 @@ bool HandleCustomWidgetTouch(int type, int fingerId, int x, int y)
                 if (w.action == ACTION_TOGGLE_HUD)
                 {
                     g_pcSettings.hideCustomWidgets = !g_pcSettings.hideCustomWidgets;
-                    SavePCControlSettings();
                 }
 
                 // Dynamic position for DPAD
@@ -310,6 +246,8 @@ void RenderCustomWidgets()
 
     for (int i = 0; i < MAX_CUSTOM_WIDGETS; ++i)
     {
+        CustomWidget& w = g_pcSettings.widgets[i];
+        if (!w.enabled) continue;
         if (g_pcSettings.widgets[i].enabled)
         {
             CustomWidget& w = g_pcSettings.widgets[i];
@@ -318,7 +256,7 @@ void RenderCustomWidgets()
             if (g_pcSettings.hideCustomWidgets && w.action != ACTION_TOGGLE_HUD && !IsPCControlMenuVisible()) continue;
 
             int actionIdx = w.action;
-            if (actionIdx < 0 || actionIdx >= 11) actionIdx = 0;
+            if (actionIdx < 0 || actionIdx >= 13) actionIdx = 0;
 
             float drawX = w.posX;
             float drawY = w.posY;
@@ -418,7 +356,6 @@ bool HandleWidgetDragging(int type, int fingerId, int x, int y)
         {
             s_dragFinger = -1;
             s_dragWidgetIdx = 0;
-            SavePCControlSettings();
             return true;
         }
     }
@@ -437,6 +374,8 @@ int GetActionReleaseFrames(eWidgetAction action)
     int maxFrames = 0;
     for (int i = 0; i < MAX_CUSTOM_WIDGETS; ++i)
     {
+        CustomWidget& w = g_pcSettings.widgets[i];
+        if (!w.enabled) continue;
         if (g_pcSettings.widgets[i].enabled && g_pcSettings.widgets[i].action == (int)action)
         {
             if (s_widgetStates[i].releaseFrames > maxFrames) maxFrames = s_widgetStates[i].releaseFrames;
@@ -450,6 +389,8 @@ void UpdateWidgetReleaseFrames()
 {
     for (int i = 0; i < MAX_CUSTOM_WIDGETS; ++i)
     {
+        CustomWidget& w = g_pcSettings.widgets[i];
+        if (!w.enabled) continue;
         if (s_widgetStates[i].releaseFrames > 0) s_widgetStates[i].releaseFrames--;
 
         if (s_widgetStates[i].touched)
@@ -471,6 +412,8 @@ void GetCustomAnalogValues(float& x, float& y)
     x = 0; y = 0;
     for (int i = 0; i < MAX_CUSTOM_WIDGETS; ++i)
     {
+        CustomWidget& w = g_pcSettings.widgets[i];
+        if (!w.enabled) continue;
         if (g_pcSettings.widgets[i].enabled && g_pcSettings.widgets[i].action == ACTION_DPAD)
         {
             if (s_widgetStates[i].touched)
@@ -487,6 +430,8 @@ bool IsMacro2Ready()
 {
     for (int i = 0; i < MAX_CUSTOM_WIDGETS; ++i)
     {
+        CustomWidget& w = g_pcSettings.widgets[i];
+        if (!w.enabled) continue;
         if (g_pcSettings.widgets[i].enabled && g_pcSettings.widgets[i].action == ACTION_MACRO2)
         {
             if (s_widgetStates[i].touched && s_widgetStates[i].macroTimer >= (int)(g_pcSettings.widgets[i].macroDelay * 60.0f))

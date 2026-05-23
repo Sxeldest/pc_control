@@ -208,21 +208,29 @@ void CameraPatchOnRender2D()
     if (isCurrentlyTouched)
     {
         int fingerId = lookWidget ? lookWidget->nTouchID : -1;
+        float halfScreenX = (float)s_displayX * 0.5f;
 
-        if (fingerId >= 0 && fingerId < 15 && s_lastTouchX[fingerId] < (float)s_displayX * 0.45f)
+        // If the finger assigned by the game is on the left side, it's probably the joystick.
+        // We only want touches on the right side for the camera.
+        if (fingerId >= 0 && fingerId < 15 && s_lastTouchX[fingerId] < halfScreenX)
         {
             fingerId = -1;
         }
 
+        // If no valid finger from the game, search for any finger on the right side of the screen
         if (fingerId < 0 || fingerId >= 15)
         {
             for (int i = 0; i < 15; ++i)
             {
-                if ((fabsf(s_fingerDeltaX[i]) > 0.01f || fabsf(s_fingerDeltaY[i]) > 0.01f) &&
-                    (s_lastTouchX[i] > (float)s_displayX * 0.45f))
+                // We check for fingers that have moved and are on the right side
+                if (s_lastTouchX[i] > halfScreenX)
                 {
-                    fingerId = i;
-                    break;
+                    // If this finger is active (has delta or was recently touched)
+                    if (fabsf(s_fingerDeltaX[i]) > 0.0f || fabsf(s_fingerDeltaY[i]) > 0.0f)
+                    {
+                        fingerId = i;
+                        break;
+                    }
                 }
             }
         }

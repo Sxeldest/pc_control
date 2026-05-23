@@ -284,6 +284,10 @@ void SavePCControlSettings()
 void TogglePCControlMenu()
 {
     g_pcSettings.showMenu = !g_pcSettings.showMenu;
+    if (!g_pcSettings.showMenu)
+    {
+        SavePCControlSettings();
+    }
 }
 
 bool IsPCControlMenuVisible()
