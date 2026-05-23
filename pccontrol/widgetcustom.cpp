@@ -5,7 +5,7 @@
 #include <math.h>
 
 extern void* (*FindPlayerPed)(int);
-extern void (*ClearWeaponTarget)(void* self);
+extern void ForceClearAim(void* self);
 
 struct WidgetState {
     int activeFinger = -1;
@@ -102,7 +102,7 @@ bool HandleCustomWidgetTouch(int type, int fingerId, int x, int y)
                 if (w.action == ACTION_CLEAR_AIM)
                 {
                     void* player = FindPlayerPed(-1);
-                    if (player) ClearWeaponTarget(player);
+                    if (player) ForceClearAim(player);
                 }
 
                 // Dynamic position for DPAD

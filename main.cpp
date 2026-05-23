@@ -63,6 +63,32 @@ DECL_HOOK(int, ProcessWeaponSwitch, void* self, void* pad);
 void* (*FindPlayerPed)(int);
 void (*SetMoveState)(void* self, int state);
 void (*ClearWeaponTarget)(void* self);
+void (*SetWeaponLockOnTarget)(void* self, void* target);
+
+void ForceClearAim(void* player)
+{
+    if (!player) return;
+
+    // 1. Try to clear target lock
+    if (SetWeaponLockOnTarget) SetWeaponLockOnTarget(player, nullptr);
+
+    // 2. Try to use game function if available via symbol
+    if (ClearWeaponTarget)
+    {
+        ClearWeaponTarget(player);
+    }
+
+    // 3. Manual task abortion (safer fallback)
+    void* intelligence = *(void**)((uintptr_t)player + 0x440);
+    if (intelligence && GetTaskUseGun)
+    {
+        uintptr_t taskUseGun = (uintptr_t)GetTaskUseGun(intelligence);
+        if (taskUseGun)
+        {
+            *(uint8_t*)(taskUseGun + 16) = 0; // State 0 = Idle/Abort
+        }
+    }
+}
 
 static bool g_crouchPrevState = false;
 static bool g_jumpPrevState = false;
@@ -620,7 +646,8 @@ extern "C" void OnModLoad()
         HOOK(CycleWeaponRightJustDown, gtasa + addrCycleWeaponRight + 1);
         GetTaskUseGun = (int (*)(void*))(gtasa + addrGetTaskUseGun + 1);
         FindPlayerPed = (void* (*)(int))(aml->GetSym(pGameHandle, "_Z13FindPlayerPedi"));
-        ClearWeaponTarget = (void (*)(void*))(gtasa + addrClearWeaponTarget + 1);
+        ClearWeaponTarget = (void (*)(void*))(aml->GetSym(pGameHandle, "_ZN10CPlayerPed17ClearWeaponTargetEv"));
+        SetWeaponLockOnTarget = (void (*)(void*, void*))(aml->GetSym(pGameHandle, "_ZN4CPed21SetWeaponLockOnTargetEP7CEntity"));
         SetMoveState = (void (*)(void*, int))(aml->GetSym(pGameHandle, "_ZN4CPed12SetMoveStateE10eMoveState"));
         if (!SetMoveState) SetMoveState = (void (*)(void*, int))(gtasa + 0x3639A4 + 1);
         HOOK(ProcessWeaponSwitch, gtasa + addrProcessWeaponSwitch + 1);
