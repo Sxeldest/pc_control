@@ -103,6 +103,20 @@ bool HandleCustomWidgetTouch(int type, int fingerId, int x, int y)
                 {
                     void* player = FindPlayerPed(-1);
                     if (player) ForceClearAim(player);
+
+                    // Also force-release any widgets that might be causing aim/shoot
+                    for (int j = 0; j < MAX_CUSTOM_WIDGETS; ++j)
+                    {
+                        if (g_pcSettings.widgets[j].action == ACTION_TARGET ||
+                            g_pcSettings.widgets[j].action == ACTION_VC_SHOOT ||
+                            g_pcSettings.widgets[j].action == ACTION_MACRO1 ||
+                            g_pcSettings.widgets[j].action == ACTION_MACRO2)
+                        {
+                            s_widgetStates[j].touched = false;
+                            s_widgetStates[j].activeFinger = -1;
+                            s_widgetStates[j].releaseFrames = 0;
+                        }
+                    }
                 }
 
                 // Dynamic position for DPAD

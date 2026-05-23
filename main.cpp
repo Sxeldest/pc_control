@@ -64,21 +64,28 @@ void* (*FindPlayerPed)(int);
 void (*SetMoveState)(void* self, int state);
 void (*ClearWeaponTarget)(void* self);
 void (*SetWeaponLockOnTarget)(void* self, void* target);
+void (*ClearPlayerWeaponMode)(void* self);
 
 void ForceClearAim(void* player)
 {
     if (!player) return;
 
-    // 1. Try to clear target lock
+    // 1. Clear camera mode (most important for exiting aim state)
+    if (ClearPlayerWeaponMode && pTheCamera)
+    {
+        ClearPlayerWeaponMode(pTheCamera);
+    }
+
+    // 2. Try to clear target lock
     if (SetWeaponLockOnTarget) SetWeaponLockOnTarget(player, nullptr);
 
-    // 2. Try to use game function if available via symbol
+    // 3. Try to use game function if available via symbol
     if (ClearWeaponTarget)
     {
         ClearWeaponTarget(player);
     }
 
-    // 3. Manual task abortion (safer fallback)
+    // 4. Manual task abortion (safer fallback)
     void* intelligence = *(void**)((uintptr_t)player + 0x440);
     if (intelligence && GetTaskUseGun)
     {
@@ -648,6 +655,7 @@ extern "C" void OnModLoad()
         FindPlayerPed = (void* (*)(int))(aml->GetSym(pGameHandle, "_Z13FindPlayerPedi"));
         ClearWeaponTarget = (void (*)(void*))(aml->GetSym(pGameHandle, "_ZN10CPlayerPed17ClearWeaponTargetEv"));
         SetWeaponLockOnTarget = (void (*)(void*, void*))(aml->GetSym(pGameHandle, "_ZN4CPed21SetWeaponLockOnTargetEP7CEntity"));
+        ClearPlayerWeaponMode = (void (*)(void*))(aml->GetSym(pGameHandle, "_ZN7CCamera21ClearPlayerWeaponModeEv"));
         SetMoveState = (void (*)(void*, int))(aml->GetSym(pGameHandle, "_ZN4CPed12SetMoveStateE10eMoveState"));
         if (!SetMoveState) SetMoveState = (void (*)(void*, int))(gtasa + 0x3639A4 + 1);
         HOOK(ProcessWeaponSwitch, gtasa + addrProcessWeaponSwitch + 1);
