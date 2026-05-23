@@ -65,11 +65,6 @@ void (*SetMoveState)(void* self, int state);
 void (*ClearWeaponTarget)(void* self);
 void (*SetWeaponLockOnTarget)(void* self, void* target);
 void (*ClearPlayerWeaponMode)(void* self);
-void (*ClearAimFlag)(void* self);
-void (*ClearLookFlag)(void* self);
-void (*TaskUseGunClearAnim)(void* self, void* ped);
-
-static uintptr_t* g_touchWidgets = nullptr;
 
 struct CCam {
     char padding[14];
@@ -93,6 +88,12 @@ struct CCamera {
 };
 
 static CCamera* pTheCamera = nullptr;
+
+void (*ClearAimFlag)(void* self);
+void (*ClearLookFlag)(void* self);
+void (*TaskUseGunClearAnim)(void* self, void* ped);
+
+static uintptr_t* g_touchWidgets = nullptr;
 
 void ForceClearAim(void* player)
 {
@@ -157,7 +158,7 @@ static int g_sprintDoubleTapBoost = 0;
 static int g_sprintJustDownFrames = 0;
 
 const int Z_SPRINT_DOUBLE_TAP_BOOST = 4;
-const float Z_DEADZONE = 1.0f;
+const float Z_DEADZONE = 8.0f;
 const float Z_AXIS_DEADZONE = 18.0f;
 const float Z_AXIS_LOCK_RATIO = 0.35f;
 const float Z_WALK_MAX = 80.0f;
