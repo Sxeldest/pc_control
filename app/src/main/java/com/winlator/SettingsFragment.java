@@ -113,6 +113,9 @@ public class SettingsFragment extends Fragment {
         final CheckBox cbStopProcessesOnSuspend = view.findViewById(R.id.CBStopProcessesOnSuspend);
         cbStopProcessesOnSuspend.setChecked(preferences.getBoolean("stop_processes_on_suspend", true));
 
+        final CheckBox cbCapturePointerOnExternalMouse = view.findViewById(R.id.CBCapturePointerOnExternalMouse);
+        cbCapturePointerOnExternalMouse.setChecked(preferences.getBoolean("capture_pointer_on_external_mouse", true));
+
         final CheckBox cbEnableWineDebug = view.findViewById(R.id.CBEnableWineDebug);
         cbEnableWineDebug.setChecked(preferences.getBoolean("enable_wine_debug", false));
 
@@ -152,6 +155,7 @@ public class SettingsFragment extends Fragment {
             editor.putString("box64_preset", Box86_64PresetManager.getSpinnerSelectedId(sBox64Preset));
             editor.putBoolean("use_dri3", cbUseDRI3.isChecked());
             editor.putBoolean("stop_processes_on_suspend", cbStopProcessesOnSuspend.isChecked());
+            editor.putBoolean("capture_pointer_on_external_mouse", cbCapturePointerOnExternalMouse.isChecked());
             editor.putFloat("cursor_speed", sbCursorSpeed.getProgress() / 100.0f);
             editor.putBoolean("enable_wine_debug", cbEnableWineDebug.isChecked());
             editor.putBoolean("enable_box86_64_logs", cbEnableBox86_64Logs.isChecked());

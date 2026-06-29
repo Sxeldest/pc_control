@@ -230,5 +230,6 @@
     <string name="enable_xinput">Enable XInput</string>
     <string name="enable_dinput">Enable DInput</string>
     <string name="stop_processes_on_suspend">Stop processes on suspend</string>
+    <string name="capture_pointer_on_external_mouse">Capture pointer on external mouse</string>
     <string name="lock_8_way">8-way lock</string>
 </resources>

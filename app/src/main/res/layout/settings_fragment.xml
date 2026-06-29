@@ -196,6 +196,13 @@
                         android:layout_height="wrap_content"
                         android:text="@string/stop_processes_on_suspend"
                         android:layout_marginTop="8dp" />
+
+                    <CheckBox
+                        android:id="@+id/CBCapturePointerOnExternalMouse"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/capture_pointer_on_external_mouse"
+                        android:layout_marginTop="8dp" />
                 </LinearLayout>
 
                 <TextView

@@ -105,6 +105,7 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
     private OnExtractFileListener onExtractFileListener;
     private final WinHandler winHandler = new WinHandler(this);
     private float globalCursorSpeed = 1.0f;
+    private boolean capturePointerOnExternalMouse = true;
     private MagnifierView magnifierView;
     private DebugDialog debugDialog;
     private short taskAffinityMask = 0;
@@ -263,6 +264,12 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
                 editInputControlsCallback = null;
             }
         }
+    }
+
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        if (hasFocus && capturePointerOnExternalMouse) touchpadView.requestPointerCapture();
     }
 
     @Override
@@ -486,7 +493,8 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
         rootView.addView(xServerView);
 
         globalCursorSpeed = preferences.getFloat("cursor_speed", 1.0f);
-        touchpadView = new TouchpadView(this, xServer);
+        capturePointerOnExternalMouse = preferences.getBoolean("capture_pointer_on_external_mouse", true);
+        touchpadView = new TouchpadView(this, xServer, capturePointerOnExternalMouse);
         touchpadView.setSensitivity(globalCursorSpeed);
         touchpadView.setFourFingersTapCallback(() -> {
             if (!drawerLayout.isDrawerOpen(GravityCompat.START)) drawerLayout.openDrawer(GravityCompat.START);

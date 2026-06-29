@@ -6,6 +6,7 @@ import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.StateListDrawable;
 import android.view.InputDevice;
 import android.view.MotionEvent;
+import android.view.PointerIcon;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
@@ -19,7 +20,7 @@ import com.winlator.winhandler.WinHandler;
 import com.winlator.xserver.Pointer;
 import com.winlator.xserver.XServer;
 
-public class TouchpadView extends View {
+public class TouchpadView extends View implements View.OnCapturedPointerListener {
     private static final byte MAX_FINGERS = 4;
     private static final short MAX_TWO_FINGERS_SCROLL_DISTANCE = 350;
     public static final byte MAX_TAP_TRAVEL_DISTANCE = 10;
@@ -36,18 +37,26 @@ public class TouchpadView extends View {
     private float scrollAccumY = 0;
     private boolean scrolling = false;
     private final XServer xServer;
+    private final boolean capturePointerOnExternalMouse;
     private Runnable fourFingersTapCallback;
     private final float[] xform = XForm.getInstance();
 
-    public TouchpadView(Context context, XServer xServer) {
+    public TouchpadView(Context context, XServer xServer, boolean capturePointerOnExternalMouse) {
         super(context);
         this.xServer = xServer;
+        this.capturePointerOnExternalMouse = capturePointerOnExternalMouse;
         setLayoutParams(new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         setBackground(createTransparentBg());
         setClickable(true);
         setFocusable(true);
-        setFocusableInTouchMode(false);
+        setFocusableInTouchMode(true);
         updateXform(AppUtils.getScreenWidth(), AppUtils.getScreenHeight(), xServer.screenInfo.width, xServer.screenInfo.height);
+
+        if (capturePointerOnExternalMouse) {
+            setPointerIcon(PointerIcon.getSystemIcon(context, PointerIcon.TYPE_NULL));
+            setOnCapturedPointerListener(this);
+            setOnClickListener(view -> requestPointerCapture());
+        }
     }
 
     @Override
@@ -119,6 +128,12 @@ public class TouchpadView extends View {
         int pointerId = event.getPointerId(actionIndex);
         int actionMasked = event.getActionMasked();
         if (pointerId >= MAX_FINGERS) return true;
+
+        if (actionMasked == MotionEvent.ACTION_DOWN) requestUnbufferedDispatch(event);
+
+        if (capturePointerOnExternalMouse && event.isFromSource(InputDevice.SOURCE_MOUSE) && (actionMasked == MotionEvent.ACTION_UP || actionMasked == MotionEvent.ACTION_BUTTON_RELEASE)) {
+            if (!hasPointerCapture()) requestPointerCapture();
+        }
 
         switch (actionMasked) {
             case MotionEvent.ACTION_DOWN:
@@ -356,6 +371,24 @@ public class TouchpadView extends View {
         result[0] = x - lastX;
         result[1] = y - lastY;
         return result;
+    }
+
+    @Override
+    public boolean onCapturedPointer(View view, MotionEvent event) {
+        if (event.getAction() == MotionEvent.ACTION_MOVE) {
+            float dx = event.getX() * sensitivity;
+            if (Math.abs(dx) > CURSOR_ACCELERATION_THRESHOLD) dx *= CURSOR_ACCELERATION;
+
+            float dy = event.getY() * sensitivity;
+            if (Math.abs(dy) > CURSOR_ACCELERATION_THRESHOLD) dy *= CURSOR_ACCELERATION;
+
+            xServer.injectPointerMoveDelta(Mathf.roundPoint(dx), Mathf.roundPoint(dy));
+            return true;
+        }
+        else {
+            event.setSource(event.getSource() | InputDevice.SOURCE_MOUSE);
+            return onExternalMouseEvent(event);
+        }
     }
 
     private StateListDrawable createTransparentBg() {
