@@ -78,6 +78,14 @@ public class RangeScroller {
         }
     }
 
+    public boolean isScrolling() {
+        return scrolling;
+    }
+
+    public Binding getBinding() {
+        return binding;
+    }
+
     public void handleTouchDown(float x, float y) {
         destroyTimer();
 

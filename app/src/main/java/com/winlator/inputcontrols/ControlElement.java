@@ -357,6 +357,21 @@ public class ControlElement {
         return text;
     }
 
+    private static Binding getRangeBindingForIndex(Range range, int index) {
+        switch (range) {
+            case FROM_A_TO_Z:
+                return Binding.valueOf("KEY_"+((char)(65 + index)));
+            case FROM_0_TO_9:
+                return Binding.valueOf("KEY_"+((index + 1) % 10));
+            case FROM_F1_TO_F12:
+                return Binding.valueOf("KEY_F"+(index + 1));
+            case FROM_NP0_TO_NP9:
+                return Binding.valueOf("KEY_KP_"+((index + 1) % 10));
+            default:
+                return Binding.NONE;
+        }
+    }
+
     public void draw(Canvas canvas) {
         int snappingSize = inputControlsView.getSnappingSize();
         Paint paint = inputControlsView.getPaint();
@@ -483,21 +498,20 @@ public class ControlElement {
                 float minTextSize = snappingSize * 2 * scale;
                 float scrollOffset = scroller.getScrollOffset();
                 byte[] rangeIndex = scroller.getRangeIndex();
+                Binding selectedBinding = scroller.getBinding();
                 Path path = inputControlsView.getPath();
                 path.reset();
 
-                if (pressed) {
+                if (pressed && !scroller.isScrolling()) {
                     canvas.saveLayer(boundingBox.left - strokeWidth, boundingBox.top - strokeWidth, boundingBox.right + strokeWidth, boundingBox.bottom + strokeWidth, null);
-                    paint.setStyle(Paint.Style.FILL);
                 }
 
                 if (orientation == 0) {
                     float lineTop = boundingBox.top + strokeWidth * 0.5f;
                     float lineBottom = boundingBox.bottom - strokeWidth * 0.5f;
                     float startX = boundingBox.left;
+                    paint.setStyle(Paint.Style.STROKE);
                     canvas.drawRoundRect(startX, boundingBox.top, boundingBox.right, boundingBox.bottom, radius, radius, paint);
-
-                    if (pressed) paint.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.DST_OUT));
 
                     canvas.save();
                     path.addRoundRect(startX, boundingBox.top, boundingBox.right, boundingBox.bottom, radius, radius, Path.Direction.CW);
@@ -506,32 +520,37 @@ public class ControlElement {
 
                     for (byte i = rangeIndex[0]; i < rangeIndex[1]; i++) {
                         int index = i % range.max;
-                        paint.setStyle(Paint.Style.STROKE);
+                        boolean isSegmentPressed = pressed && !scroller.isScrolling() && selectedBinding == getRangeBindingForIndex(range, index);
+
+                        if (isSegmentPressed) {
+                            paint.setStyle(Paint.Style.FILL);
+                            canvas.drawRect(startX, boundingBox.top, startX + elementSize, boundingBox.bottom, paint);
+                            paint.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.DST_OUT));
+                        }
+
                         paint.setColor(oldColor);
+                        paint.setStyle(Paint.Style.STROKE);
+                        if (startX > boundingBox.left && startX  < boundingBox.right && !isSegmentPressed) canvas.drawLine(startX, lineTop, startX, lineBottom, paint);
 
-                        if (startX > boundingBox.left && startX  < boundingBox.right) canvas.drawLine(startX, lineTop, startX, lineBottom, paint);
                         String text = getRangeTextForIndex(range, index);
-
                         if (startX < boundingBox.right && startX + elementSize > boundingBox.left) {
                             paint.setStyle(Paint.Style.FILL);
                             paint.setTextSize(Math.min(getTextSizeForWidth(paint, text, elementSize - strokeWidth * 2), minTextSize));
                             paint.setTextAlign(Paint.Align.CENTER);
                             canvas.drawText(text, startX + elementSize * 0.5f, (y - ((paint.descent() + paint.ascent()) * 0.5f)), paint);
                         }
+
+                        if (isSegmentPressed) paint.setXfermode(null);
                         startX += elementSize;
                     }
-
-                    paint.setStyle(Paint.Style.STROKE);
-                    paint.setColor(oldColor);
                     canvas.restore();
                 }
                 else {
                     float lineLeft = boundingBox.left + strokeWidth * 0.5f;
                     float lineRight = boundingBox.right - strokeWidth * 0.5f;
                     float startY = boundingBox.top;
+                    paint.setStyle(Paint.Style.STROKE);
                     canvas.drawRoundRect(boundingBox.left, startY, boundingBox.right, boundingBox.bottom, radius, radius, paint);
-
-                    if (pressed) paint.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.DST_OUT));
 
                     canvas.save();
                     path.addRoundRect(boundingBox.left, startY, boundingBox.right, boundingBox.bottom, radius, radius, Path.Direction.CW);
@@ -539,30 +558,34 @@ public class ControlElement {
                     startY -= scrollOffset % elementSize;
 
                     for (byte i = rangeIndex[0]; i < rangeIndex[1]; i++) {
-                        paint.setStyle(Paint.Style.STROKE);
+                        int index = i % range.max;
+                        boolean isSegmentPressed = pressed && !scroller.isScrolling() && selectedBinding == getRangeBindingForIndex(range, index);
+
+                        if (isSegmentPressed) {
+                            paint.setStyle(Paint.Style.FILL);
+                            canvas.drawRect(boundingBox.left, startY, boundingBox.right, startY + elementSize, paint);
+                            paint.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.DST_OUT));
+                        }
+
                         paint.setColor(oldColor);
+                        paint.setStyle(Paint.Style.STROKE);
+                        if (startY > boundingBox.top && startY < boundingBox.bottom && !isSegmentPressed) canvas.drawLine(lineLeft, startY, lineRight, startY, paint);
 
-                        if (startY > boundingBox.top && startY < boundingBox.bottom) canvas.drawLine(lineLeft, startY, lineRight, startY, paint);
-                        String text = getRangeTextForIndex(range, i);
-
+                        String text = getRangeTextForIndex(range, index);
                         if (startY < boundingBox.bottom && startY + elementSize > boundingBox.top) {
                             paint.setStyle(Paint.Style.FILL);
                             paint.setTextSize(Math.min(getTextSizeForWidth(paint, text, boundingBox.width() - strokeWidth * 2), minTextSize));
                             paint.setTextAlign(Paint.Align.CENTER);
                             canvas.drawText(text, x, startY + elementSize * 0.5f - ((paint.descent() + paint.ascent()) * 0.5f), paint);
                         }
+
+                        if (isSegmentPressed) paint.setXfermode(null);
                         startY += elementSize;
                     }
-
-                    paint.setStyle(Paint.Style.STROKE);
-                    paint.setColor(oldColor);
                     canvas.restore();
                 }
 
-                if (pressed) {
-                    paint.setXfermode(null);
-                    canvas.restore();
-                }
+                if (pressed && !scroller.isScrolling()) canvas.restore();
                 break;
             }
             case STICK: {
@@ -652,6 +675,9 @@ public class ControlElement {
     public boolean handleTouchDown(int pointerId, float x, float y) {
         if (currentPointerId == -1 && containsPoint(x, y)) {
             currentPointerId = pointerId;
+            if (currentPosition == null) currentPosition = new PointF();
+            currentPosition.set(x, y);
+
             if (type == Type.BUTTON) {
                 if (isKeepButtonPressedAfterMinTime()) touchTime = System.currentTimeMillis();
                 if (!toggleSwitch || !selected) inputControlsView.handleInputEvent(getBindingAt(0), true);
@@ -670,7 +696,9 @@ public class ControlElement {
                     if (currentPosition == null) currentPosition = new PointF();
                     currentPosition.set(x, y);
                 }
-                return handleTouchMove(pointerId, x, y);
+                boolean result = handleTouchMove(pointerId, x, y);
+                inputControlsView.invalidate();
+                return result;
             }
         }
         else return false;
@@ -678,6 +706,9 @@ public class ControlElement {
 
     public boolean handleTouchMove(int pointerId, float x, float y) {
         if (pointerId == currentPointerId && (type == Type.D_PAD || type == Type.STICK || type == Type.TRACKPAD)) {
+            if (currentPosition == null) currentPosition = new PointF();
+            currentPosition.set(x, y);
+
             float deltaX, deltaY;
             Rect boundingBox = getBoundingBox();
             float radius = boundingBox.width() * 0.5f;
@@ -789,6 +820,7 @@ public class ControlElement {
                 }
             }
 
+            inputControlsView.invalidate();
             return true;
         }
         else if (pointerId == currentPointerId && type == Type.RANGE_BUTTON) {
@@ -826,7 +858,7 @@ public class ControlElement {
                     pressed = false;
                     inputControlsView.invalidate();
                 }
-                else if (type == Type.STICK) {
+                else if (type == Type.STICK || type == Type.D_PAD) {
                     inputControlsView.invalidate();
                 }
 
