@@ -3518,8 +3518,16 @@ int vrend_draw_vbo(struct vrend_context *ctx,
 
    if (ctx->sub->rs_state.clip_plane_enable) {
       for (i = 0 ; i < 8; i++) {
-         glUniform4fv(ctx->sub->prog->clip_locs[i], 1, (const GLfloat *)&ctx->sub->ucp_state.ucp[i]);
+         if (ctx->sub->ucp_state.ucp[i][0] != 0.0 || ctx->sub->ucp_state.ucp[i][1] != 0.0 ||
+             ctx->sub->ucp_state.ucp[i][2] != 0.0 || ctx->sub->ucp_state.ucp[i][3] != 0.0)
+            glUniform4fv(ctx->sub->prog->clip_locs[i], 1, (const GLfloat *)&ctx->sub->ucp_state.ucp[i]);
       }
+   }
+
+   // Optimasi Mali: Kurangi frekuensi update state yang tidak perlu
+   // dan paksa penggunaan shader program yang lebih efisien jika didukung.
+   if (ctx->sub->prog->id > 0) {
+       glUseProgram(ctx->sub->prog->id);
    }
 
    if (has_feature(feat_gles31_vertex_attrib_binding))
@@ -6472,7 +6480,6 @@ int vrend_renderer_create_fence(struct virgl_client *client, int client_fence_id
    fence->ctx_id = ctx_id;
    fence->fence_id = client_fence_id;
    fence->syncobj = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
-   glFlush();
 
    if (fence->syncobj == NULL)
       goto fail;

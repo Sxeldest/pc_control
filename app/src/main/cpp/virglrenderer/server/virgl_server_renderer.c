@@ -48,6 +48,11 @@
 
 #include <jni.h>
 
+#ifndef EGL_CONTEXT_PRIORITY_LEVEL_IMG
+#define EGL_CONTEXT_PRIORITY_LEVEL_IMG 0x3100
+#define EGL_CONTEXT_PRIORITY_HIGH_IMG 0x3101
+#endif
+
 static void virgl_server_write_fence(struct virgl_client *client, uint32_t fence_id)
 {
    client->renderer->last_fence_id = fence_id;
@@ -59,10 +64,19 @@ static virgl_gl_context virgl_server_egl_create_context(struct virgl_client *cli
    EGLContext egl_ctx;
    EGLint ctx_att[] = {
       EGL_CONTEXT_CLIENT_VERSION, 3,
+      EGL_CONTEXT_PRIORITY_LEVEL_IMG, EGL_CONTEXT_PRIORITY_HIGH_IMG,
       EGL_NONE
    };
 
    egl_ctx = eglCreateContext(renderer->egl_display, renderer->egl_conf, renderer->egl_ctx, ctx_att);
+
+   if (egl_ctx == EGL_NO_CONTEXT) {
+       EGLint ctx_att_fallback[] = {
+          EGL_CONTEXT_CLIENT_VERSION, 3,
+          EGL_NONE
+       };
+       egl_ctx = eglCreateContext(renderer->egl_display, renderer->egl_conf, renderer->egl_ctx, ctx_att_fallback);
+   }
 
    return (virgl_gl_context)egl_ctx;
 }
@@ -267,6 +281,7 @@ void virgl_server_destroy_renderer(struct virgl_client *client)
    util_hash_table_destroy(client->renderer->iovec_hash);
    client->renderer->iovec_hash = NULL;
 
+   free(client->renderer->cbuf);
    free(client->renderer);
    client->renderer = NULL;
    client->initialized = false;
@@ -487,24 +502,27 @@ int virgl_server_transfer_put(struct virgl_client *client, UNUSED uint32_t lengt
 
 int virgl_server_submit_cmd(struct virgl_client *client, uint32_t length)
 {
-   uint32_t *cbuf;
    int cbuf_len, ret;
 
    cbuf_len = length * 4;
-   cbuf = malloc(cbuf_len);
-   if (!cbuf)
+   if (client->renderer->cbuf_len < (uint32_t)cbuf_len) {
+      free(client->renderer->cbuf);
+      client->renderer->cbuf = malloc(cbuf_len);
+      client->renderer->cbuf_len = cbuf_len;
+   }
+
+   if (!client->renderer->cbuf)
       return -1;
 
-   ret = virgl_block_read(client->fd, cbuf, cbuf_len);
+   ret = virgl_block_read(client->fd, client->renderer->cbuf, cbuf_len);
    if (ret != cbuf_len) {
-      free(cbuf);
       return -1;
    }
 
-   vrend_decode_block(client, client->renderer->ctx_id, cbuf, length);
+   vrend_decode_block(client, client->renderer->ctx_id, client->renderer->cbuf, length);
 
-   free(cbuf);
-   virgl_server_renderer_create_fence(client);
+   // Hapus create_fence di sini untuk mengurangi overhead syscall.
+   // Biarkan driver Mali yang menangani sinkronisasi secara batch.
    return 0;
 }
 
@@ -528,6 +546,7 @@ int virgl_server_resource_busy_wait(struct virgl_client *client, UNUSED uint32_t
          break;
 
       vrend_renderer_check_fences(client);
+      if (busy) usleep(100);
    } while (1);
 
    send_buf[0] = 1;
@@ -554,26 +573,20 @@ int virgl_server_flush_frontbuffer(struct virgl_client *client, UNUSED uint32_t 
    handle = recv_buf[0];
    drawable = recv_buf[1];
 
-   if (handle != client->renderer->handle) {
-      struct vrend_context *ctx = vrend_lookup_renderer_ctx(client, client->renderer->ctx_id);
-      struct vrend_resource *res = vrend_renderer_ctx_res_lookup(ctx, handle);
-
-      if (client->renderer->framebuffer)
-         glDeleteFramebuffers(1, &client->renderer->framebuffer);
-
-      GLuint framebuffer;
-      glGenFramebuffers(1, &framebuffer);
-      glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
-
-      vrend_fb_bind_texture(res, 0, 0, 0);
-
-      glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-      client->renderer->framebuffer = framebuffer;
-      client->renderer->handle = handle;
+   struct vrend_resource *res = NULL;
+   if (handle == client->renderer->last_res_handle && client->renderer->last_res) {
+       res = (struct vrend_resource *)client->renderer->last_res;
+   } else {
+       struct vrend_context *ctx = vrend_lookup_renderer_ctx(client, client->renderer->ctx_id);
+       res = vrend_renderer_ctx_res_lookup(ctx, handle);
+       client->renderer->last_res = res;
+       client->renderer->last_res_handle = handle;
    }
 
-   (*jni_info.env)->CallVoidMethod(jni_info.env, jni_info.obj, jni_info.flush_frontbuffer, drawable, client->renderer->framebuffer);
+   if (res) {
+      (*jni_info.env)->CallVoidMethod(jni_info.env, jni_info.obj, jni_info.flush_frontbuffer, drawable, res->id);
+   }
+
    return 0;
 }
 

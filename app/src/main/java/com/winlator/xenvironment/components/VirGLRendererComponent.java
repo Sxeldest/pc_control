@@ -94,14 +94,14 @@ public class VirGLRendererComponent extends EnvironmentComponent implements Conn
     }
 
     @Keep
-    private void flushFrontbuffer(int drawableId, int framebuffer) {
+    private void flushFrontbuffer(int drawableId, int textureId) {
         Drawable drawable = xServer.drawableManager.getDrawable(drawableId);
         if (drawable == null) return;
 
         synchronized (drawable.renderLock) {
             drawable.setData(null);
             Texture texture = drawable.getTexture();
-            texture.copyFromFramebuffer(framebuffer, drawable.width, drawable.height);
+            texture.setTextureId(textureId);
         }
 
         Runnable onDrawListener = drawable.getOnDrawListener();

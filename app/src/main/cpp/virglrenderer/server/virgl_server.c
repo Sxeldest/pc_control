@@ -33,6 +33,7 @@
 #include <fcntl.h>
 #include <getopt.h>
 #include <string.h>
+#include <sys/poll.h>
 
 #include "util/u_memory.h"
 #include "virgl_server.h"
@@ -65,54 +66,60 @@ static void virgl_server_handle_request(struct virgl_client *client)
 {
    int ret;
    uint32_t header[2];
+   struct pollfd pfd = { .fd = client->fd, .events = POLLIN };
 
-   ret = virgl_block_read(client->fd, &header, sizeof(header));
-   if (ret < 0 || (size_t)ret < sizeof(header)) {
-      virgl_server_kill_connection(client);
-      return;
-   }
-
-   if (!client->initialized) {
-      if (header[1] != VCMD_CREATE_RENDERER) {
-         virgl_server_kill_connection(client);
+   do {
+      ret = virgl_block_read(client->fd, &header, sizeof(header));
+      if (ret < 0 || (size_t)ret < sizeof(header)) {
+         if (ret != 0) virgl_server_kill_connection(client);
          return;
       }
 
-      ret = virgl_server_create_renderer(client, header[0]);
-      client->initialized = true;
-   }
+      if (!client->initialized) {
+         if (header[1] != VCMD_CREATE_RENDERER) {
+            virgl_server_kill_connection(client);
+            return;
+         }
+
+         ret = virgl_server_create_renderer(client, header[0]);
+         client->initialized = true;
+      }
+
+      switch (header[1]) {
+         case VCMD_GET_CAPS:
+            ret = virgl_server_send_caps(client, header[0]);
+            break;
+         case VCMD_RESOURCE_CREATE:
+            ret = virgl_server_resource_create(client, header[0]);
+            break;
+         case VCMD_RESOURCE_DESTROY:
+            ret = virgl_server_resource_destroy(client, header[0]);
+            break;
+         case VCMD_TRANSFER_GET:
+            ret = virgl_server_transfer_get(client, header[0]);
+            break;
+         case VCMD_TRANSFER_PUT:
+            ret = virgl_server_transfer_put(client, header[0]);
+            break;
+         case VCMD_SUBMIT_CMD:
+            ret = virgl_server_submit_cmd(client, header[0]);
+            break;
+         case VCMD_RESOURCE_BUSY_WAIT:
+            ret = virgl_server_resource_busy_wait(client, header[0]);
+            break;
+         case VCMD_FLUSH_FRONTBUFFER:
+            ret = virgl_server_flush_frontbuffer(client, header[0]);
+            break;
+      }
+
+      if (ret < 0) {
+         virgl_server_kill_connection(client);
+         return;
+      }
+   } while (poll(&pfd, 1, 0) > 0);
 
    vrend_renderer_check_fences(client);
-   
-   switch (header[1]) {
-      case VCMD_GET_CAPS:
-         ret = virgl_server_send_caps(client, header[0]);
-         break;
-      case VCMD_RESOURCE_CREATE:
-         ret = virgl_server_resource_create(client, header[0]);
-         break;
-      case VCMD_RESOURCE_DESTROY:
-         ret = virgl_server_resource_destroy(client, header[0]);
-         break;
-      case VCMD_TRANSFER_GET:
-         ret = virgl_server_transfer_get(client, header[0]);
-         break;
-      case VCMD_TRANSFER_PUT:
-         ret = virgl_server_transfer_put(client, header[0]);
-         break;
-      case VCMD_SUBMIT_CMD:
-         ret = virgl_server_submit_cmd(client, header[0]);
-         break;
-      case VCMD_RESOURCE_BUSY_WAIT:
-         ret = virgl_server_resource_busy_wait(client, header[0]);
-         break;
-      case VCMD_FLUSH_FRONTBUFFER:
-         ret = virgl_server_flush_frontbuffer(client, header[0]);
-         break;
-   }
-   
-   if (ret < 0)
-      virgl_server_kill_connection(client);
+   glFlush();
 }
 
 JNIEXPORT jlong JNICALL

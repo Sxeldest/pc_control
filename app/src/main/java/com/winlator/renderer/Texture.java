@@ -16,8 +16,10 @@ public class Texture {
     private int minFilter = GLES20.GL_LINEAR;
     private int format = GLES11Ext.GL_BGRA;
     protected boolean needsUpdate = true;
+    private boolean isExternal = false;
 
     public void allocateTexture(short width, short height, ByteBuffer data) {
+        if (isExternal) return;
         int[] textureIds = new int[1];
         GLES20.glGenTextures(1, textureIds, 0);
         textureId = textureIds[0];
@@ -37,6 +39,15 @@ public class Texture {
 
         GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, 0);
         if (XrActivity.isSupported()) XrActivity.getInstance().bindFramebuffer();
+    }
+
+    public void setTextureId(int textureId) {
+        if (!isExternal && this.textureId > 0) {
+            GLES20.glDeleteTextures(1, new int[]{this.textureId}, 0);
+        }
+        this.textureId = textureId;
+        this.isExternal = true;
+        this.needsUpdate = false;
     }
 
     public int getWrapS() {
@@ -88,6 +99,11 @@ public class Texture {
     }
 
     public void updateFromDrawable(Drawable drawable) {
+        if (isExternal) {
+            needsUpdate = false;
+            return;
+        }
+
         ByteBuffer data = drawable.getData();
         if (data == null) return;
 
@@ -121,10 +137,10 @@ public class Texture {
     }
 
     public void destroy() {
-        if (textureId > 0) {
+        if (textureId > 0 && !isExternal) {
             int[] textureIds = new int[]{textureId};
             GLES20.glDeleteTextures(textureIds.length, textureIds, 0);
-            textureId = 0;
         }
+        textureId = 0;
     }
 }

@@ -415,6 +415,21 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
     }
 
     private void setupXEnvironment() {
+        // Optimasi Root: Cek dan terapkan hanya jika perangkat di-root
+        Executors.newSingleThreadExecutor().execute(() -> {
+            try {
+                Process process = Runtime.getRuntime().exec("su");
+                java.io.OutputStream os = process.getOutputStream();
+                os.write(("renice -n -20 -p " + android.os.Process.myPid() + "\n").getBytes());
+                os.write(("for i in /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor; do echo performance > $i; done\n").getBytes());
+                os.write("exit\n".getBytes());
+                os.flush();
+                process.waitFor();
+            } catch (Exception e) {
+                // Jika gagal (tidak ada root), abaikan saja dan jalan normal
+            }
+        });
+
         envVars.put("MESA_DEBUG", "silent");
         envVars.put("MESA_NO_ERROR", "1");
         envVars.put("WINEPREFIX", ImageFs.WINEPREFIX);

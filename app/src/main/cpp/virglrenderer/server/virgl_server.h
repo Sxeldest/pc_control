@@ -35,7 +35,8 @@
 #include <GLES2/gl2.h>
 #include <EGL/egl.h>
 
-#define printf(...) __android_log_print(ANDROID_LOG_DEBUG, "System.out", __VA_ARGS__);
+// Matikan log debug untuk meningkatkan performa CPU
+#define printf(...)
 
 struct jni_info {
    jobject obj;
@@ -56,6 +57,12 @@ struct virgl_server_renderer {
    EGLDisplay egl_display;
    EGLConfig egl_conf;
    EGLContext egl_ctx;
+
+   uint32_t *cbuf;
+   uint32_t cbuf_len;
+
+   void *last_res;
+   uint32_t last_res_handle;
 };
 
 struct virgl_client {
